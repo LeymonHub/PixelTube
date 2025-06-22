@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🕹️ PixelTube Downloader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+
+  <style>
+    body {
+      font-family: 'Press Start 2P', monospace;
+    }
+
+    .crt::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.02),
+        rgba(255, 255, 255, 0.02) 2px,
+        transparent 2px,
+        transparent 4px
+      );
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    input, select, button {
+      image-rendering: pixelated;
+    }
+
+    .custom-loader {
+      width: 40px;
+      height: 40px;
+      background: url('https://i.imgur.com/JfPpwOA.gif') no-repeat center center;
+      background-size: contain;
+      margin: auto;
+    }
+  </style>
+</head>
+<body class="crt text-green-400 min-h-screen flex items-center justify-center px-4"
+      style="background: url('https://opengameart.org/sites/default/files/2304x1296.png') center center / cover no-repeat fixed;">
+
+
+
+  <div class="bg-gray-900 border-4 border-pink-500 shadow-xl rounded-xl p-6 w-full max-w-md text-xs space-y-6">
+    <h1 class="text-center text-green-300 text-xl">🎬 PixelTube Downloader</h1>
+    <p class="text-center text-pink-400">MP3 & MP4 YouTube downloads</p>
+
+    <form id="downloadForm" class="space-y-6">
+      <div>
+        <label for="url" class="block mb-2">📺 YouTube Video URL</label>
+        <input
+          type="url"
+          id="url"
+          name="url"
+          required
+          class="w-full bg-black border border-pink-500 text-green-300 px-3 py-2"
+          placeholder="Paste link here..."
+        />
+      </div>
+
+      <div>
+        <label for="format" class="block mb-2">🎵 Format</label>
+        <select
+          id="format"
+          name="format"
+          required
+          class="w-full bg-black border border-pink-500 text-green-300 px-3 py-2"
+        >
+          <option value="mp3">MP3</option>
+          <option value="mp4">MP4</option>
+        </select>
+      </div>
+
+      <button
+        type="submit"
+        class="w-full bg-pink-500 text-black border-2 border-white px-4 py-3 hover:bg-pink-400 transition active:scale-95"
+      >
+        ⬇️ Download
+      </button>
+    </form>
+
+    <div id="loading" class="hidden text-center mt-6">
+      <div class="custom-loader"></div>
+      <p class="mt-2 text-pink-400">Downloading... Stand by...</p>
+    </div>
+
+    <div id="success" class="mt-4 hidden text-center text-green-300">✅ Download Ready!</div>
+    <div id="error" class="mt-4 hidden text-center text-red-400">❌ Error! Try again.</div>
+  </div>
+
+  <script>
+    document.getElementById('downloadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const url = document.getElementById('url').value;
+      const format = document.getElementById('format').value;
+      const loading = document.getElementById('loading');
+      const success = document.getElementById('success');
+      const error = document.getElementById('error');
+
+      loading.classList.remove('hidden');
+      success.classList.add('hidden');
+      error.classList.add('hidden');
+
+      try {
+        const response = await fetch('/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, format })
+        });
+
+        if (!response.ok) throw new Error('Server error');
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `video.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        loading.classList.add('hidden');
+        success.classList.remove('hidden');
+      } catch (err) {
+        console.error(err);
+        loading.classList.add('hidden');
+        error.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
