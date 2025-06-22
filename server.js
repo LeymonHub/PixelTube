@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const ytdlp = require('yt-dlp-exec');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -22,34 +22,35 @@ app.post('/download', async (req, res) => {
   const filename = `download.${format}`;
   const filePath = path.join(__dirname, `temp.${format}`);
 
-  const args = format === 'mp4'
-    ? ['-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4', '--merge-output-format', 'mp4', '-o', filePath, url]
-    : ['-f', 'bestaudio', '--extract-audio', '--audio-format', format, '-o', filePath, url];
+  try {
+    await ytdlp(url, {
+      output: filePath,
+      extractAudio: format !== 'mp4',
+      audioFormat: format,
+      mergeOutputFormat: format === 'mp4' ? 'mp4' : undefined,
+      format: format === 'mp4' ? 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4' : 'bestaudio',
+    });
 
-  // Use system yt-dlp binary (installed in Docker container)
-  const ytdlp = spawn('yt-dlp', args);
-
-  ytdlp.stderr.on('data', (data) => {
-    console.error(`[yt-dlp ERROR]: ${data}`);
-  });
-
-  ytdlp.on('close', (code) => {
-    if (code !== 0 || !fs.existsSync(filePath)) {
-      return res.status(500).send('Failed to download file.');
+    if (!fs.existsSync(filePath)) {
+      return res.status(500).send('Download failed. File not found.');
     }
 
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', format === 'mp3' ? 'audio/mpeg' : format === 'wav' ? 'audio/wav' : 'video/mp4');
 
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-
-    fileStream.on('end', () => {
+    const stream = fs.createReadStream(filePath);
+    stream.pipe(res);
+    stream.on('end', () => {
       fs.unlinkSync(filePath); // Clean up temp file
     });
-  });
+
+  } catch (error) {
+    console.error('[yt-dlp ERROR]', error);
+    res.status(500).send('An error occurred while downloading.');
+  }
 });
 
 app.listen(port, () => {
   console.log(`✅ Server running at http://localhost:${port}`);
 });
+
